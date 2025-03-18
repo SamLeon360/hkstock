@@ -1,0 +1,21 @@
+version: '3'
+
+services:
+  hkstock-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hkstock-app
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - hkstock-network
+
+networks:
+  hkstock-network:
+    driver: bridge 
