@@ -6,7 +6,6 @@ import InfoList from './InfoList';
 import InfoDetail from './InfoDetail';
 import FlashList from './FlashList';
 import { fetchFinancialNews, fetchNewsByCategory, searchFinancialNews } from '../services/jin10API';
-import { fetchFutuNews, fetchFutuFlash } from '../services/futuAPI';
 
 /**
  * @description 主應用組件，包含整個應用的佈局和狀態管理
@@ -52,14 +51,14 @@ const App = () => {
       fetchData();
       
       // 檢查是否為需要自動刷新的分類
-      const needAutoRefresh = ['快訊', '富途要聞', '富途快訊'].includes(activeCategory);
-      setAutoRefresh(needAutoRefresh);
+      const isFlashNews = activeCategory === '快訊';
+      setAutoRefresh(isFlashNews);
       
-      if (needAutoRefresh) {
-        // 如果需要自動刷新，啟動倒計時
+      if (isFlashNews) {
+        // 如果是快訊，啟動倒計時
         setCountdown(60);
       } else {
-        // 如果不需要自動刷新，清除計時器
+        // 如果不是快訊，清除計時器
         if (timerRef.current) {
           clearInterval(timerRef.current);
           timerRef.current = null;
@@ -120,33 +119,19 @@ const App = () => {
       
       console.log(`正在獲取分類: ${activeCategory} 的數據`);
       
-      let newsData;
-      
-      // 根據分類選擇不同的API
-      switch (activeCategory) {
-        case '富途要聞':
-          newsData = await fetchFutuNews();
-          break;
-        case '富途快訊':
-          newsData = await fetchFutuFlash();
-          break;
-        default:
-          // 獲取其他分類數據
-          newsData = await fetchNewsByCategory(activeCategory, apiOptions);
-          break;
-      }
+      // 獲取分類數據
+      const newsData = await fetchNewsByCategory(activeCategory, apiOptions);
       
       console.log('API返回數據:', newsData.length, '條記錄');
       
       if (Array.isArray(newsData) && newsData.length > 0) {
         setInfoList(newsData);
-        if (!selectedInfo || isFlashCategory()) {
+        if (!selectedInfo) {
           setSelectedInfo(newsData[0]);
         }
       } else {
         console.warn('API返回空數據或非數組:', newsData);
-        const categoryName = getCategoryDisplayName();
-        setError(`未找到相關${categoryName}`);
+        setError(`未找到相關${activeCategory === '快訊' ? '快訊' : '金融新聞'}`);
         setInfoList([]);
       }
     } catch (error) {
@@ -155,20 +140,6 @@ const App = () => {
       setInfoList([]);
     } finally {
       setLoading(false);
-    }
-  };
-  
-  // 獲取分類的顯示名稱
-  const getCategoryDisplayName = () => {
-    switch (activeCategory) {
-      case '快訊':
-        return '快訊';
-      case '富途要聞':
-        return '富途要聞';
-      case '富途快訊':
-        return '富途快訊';
-      default:
-        return '金融新聞';
     }
   };
 
@@ -248,7 +219,7 @@ const App = () => {
 
   // 檢查是否是快訊分類
   const isFlashCategory = () => {
-    return activeCategory === '富途快訊' || activeCategory === '快訊';
+    return activeCategory === '快訊';
   };
 
   return (
@@ -270,7 +241,7 @@ const App = () => {
             </RefreshButton>
             
             {/* 自動刷新選項和倒計時 */}
-            {['快訊', '富途要聞', '富途快訊'].includes(activeCategory) && (
+            {isFlashCategory() && (
               <>
                 <AutoRefreshToggle 
                   $active={autoRefresh} 
@@ -290,7 +261,7 @@ const App = () => {
         </ControlsContainer>
         {error && <ErrorMessage>{error}</ErrorMessage>}
         
-        {/* 使用 FlashList 組件顯示所有快訊類型 */}
+        {/* 使用 FlashList 組件顯示快訊 */}
         {isFlashCategory() ? (
           <FlashListContainer>
             <FlashList 
@@ -439,15 +410,6 @@ const ContentContainer = styled.div`
   }
 `;
 
-const FlashListContainer = styled.div`
-  margin-top: 20px;
-  height: calc(100vh - 200px);
-  overflow: hidden;
-  border-radius: 8px;
-  box-shadow: var(--shadow);
-  background-color: #f9f9f9;
-`;
-
 const ListContainer = styled.div`
   flex: 1;
   overflow: hidden;
@@ -490,6 +452,16 @@ const ErrorMessage = styled.div`
   border-radius: 4px;
   margin-bottom: 10px;
   border-left: 4px solid #e74c3c;
+`;
+
+// 新增樣式
+const FlashListContainer = styled.div`
+  margin-top: 20px;
+  height: calc(100vh - 200px);
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  background-color: #f9f9f9;
 `;
 
 export default App; 

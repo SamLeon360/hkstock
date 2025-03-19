@@ -188,12 +188,12 @@ const fetchFlashNews = async (options = {}) => {
       
       if (Array.isArray(flashArray) && flashArray.length > 0) {
         console.log(`成功獲取 ${flashArray.length} 條快訊`);
-        // 格式化并過濾掉返回為null的項目
+        // 格式化並過濾掉無效項目
         const formattedItems = flashArray
           .map(formatFlashItem)
           .filter(item => item !== null);
         
-        console.log(`格式化後剩餘 ${formattedItems.length} 條快訊（過濾掉空內容）`);
+        console.log(`過濾後剩餘 ${formattedItems.length} 條有效快訊`);
         return formattedItems;
       } else {
         console.warn('快訊API返回的data字段為空數組或不存在');
@@ -222,10 +222,21 @@ const formatFlashItem = (item) => {
   console.log('格式化快訊項目:', item.id);
   
   // 提取内容，兼容两种数据结构
-  const content = item.data?.content || item.content || '';
+  let content = item.data?.content || item.content || '';
   
-  // 如果內容為空，不返回該快訊項
+  // 確保內容是字符串
+  if (typeof content === 'object') {
+    try {
+      content = JSON.stringify(content);
+    } catch (e) {
+      console.error('無法將內容對象轉為字符串:', e);
+      content = '內容解析錯誤';
+    }
+  }
+  
+  // 跳過空內容或僅包含空格的項目
   if (!content || content.trim() === '') {
+    console.log('跳過空內容項目:', item.id);
     return null;
   }
   
@@ -253,39 +264,43 @@ const formatFlashItem = (item) => {
   const dateTime = item.time || item.created_at;
   const formattedDate = dateTime ? formatDate(dateTime) : formatDate(new Date().toISOString());
   
-  // 處理相關股票
-  const relatedStocks = [];
-  if (item.data && item.data.related_stocks && Array.isArray(item.data.related_stocks)) {
-    item.data.related_stocks.forEach(stock => {
-      if (stock.name && stock.code) {
-        relatedStocks.push({
-          name: stock.name,
-          code: stock.code,
-          market: stock.market || 'SH',
-          change: stock.change_ratio || '0%',
-          price: stock.price || '0.00',
-          url: null // 移除URL
-        });
-      }
-    });
+  // 用戶要求如果沒有標題就不顯示標題，因此將title設為null
+  const title = null;
+  
+  // 確定分類名稱
+  let categoryName = '快訊';
+  if (item.category === 1) {
+    categoryName = '市場快訊';
+  } else if (item.category === 2) {
+    categoryName = '期貨快訊';
+  } else if (item.category === 3) {
+    categoryName = '美港快訊';
+  } else if (item.category === 4) {
+    categoryName = 'A股快訊';
+  } else if (item.category === 5) {
+    categoryName = '商品外匯快訊';
   }
   
+  // 檢查是否為重要快訊
+  const isImportant = item.important === 1 || item.important === true;
+  
+  // 確保 related_stocks 是一個數組
+  const relatedStocks = Array.isArray(item.related_stocks) ? item.related_stocks : [];
+  
   return {
-    id: item.id ? `jin10-flash-${item.id}` : `jin10-flash-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    title: content,  // 將內容直接作為標題，在UI中不會單獨顯示
-    category: '快訊',
-    date: formattedDate,
-    source: '金十快訊',
+    id: item.id ? String(item.id) : `flash-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    title: title,
+    category: item.category_text || categoryName,
+    datetime: formattedDate,
+    source: '金十財經',
     views: generateRandomViews(),
-    description: '',
+    description: content,
     content: content,
     image: imageUrl,
-    tags: tags.length > 0 ? tags : ['快訊'],
-    relatedStocks: relatedStocks,
-    url: null, // 移除URL
-    // 快訊特有字段
-    isFlash: true,
-    audioUrls: []
+    tags: tags.length > 0 ? tags : ['財經', '快訊'],
+    related_stocks: relatedStocks,
+    important: isImportant,
+    url: null
   };
 };
 
