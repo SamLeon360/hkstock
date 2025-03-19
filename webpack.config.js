@@ -43,6 +43,8 @@ module.exports = {
     },
     port: 3001,
     hot: true,
+    host: '0.0.0.0',
+    allowedHosts: ['hkstock.atomtechnology.com.hk', 'localhost', '.localhost'],
     proxy: [
       {
         context: ['/jin10'],
