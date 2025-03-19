@@ -27,6 +27,86 @@ const futuClient = axios.create({
 });
 
 /**
+ * @description 添加請求和響應攔截器處理CORS和重試
+ */
+futuClient.interceptors.request.use(
+  config => {
+    // 記錄請求開始時間，用於計算響應時間
+    config.metadata = { startTime: new Date() };
+    
+    // 確保每次請求都使用最新的時間戳
+    if (config.params && config.params._t) {
+      config.params._t = getCurrentTimestamp();
+    }
+    
+    console.log(`API請求: ${config.url}`, config.params);
+    return config;
+  },
+  error => {
+    console.error('請求配置錯誤:', error);
+    return Promise.reject(error);
+  }
+);
+
+futuClient.interceptors.response.use(
+  response => {
+    // 計算響應時間
+    const endTime = new Date();
+    const duration = endTime - response.config.metadata.startTime;
+    console.log(`API響應時間: ${duration}ms`);
+    
+    return response;
+  },
+  async error => {
+    const originalRequest = error.config;
+    
+    // 檢查是否存在重試標記和重試次數
+    if (!originalRequest._retry && (!originalRequest._retryCount || originalRequest._retryCount < 2)) {
+      originalRequest._retry = true;
+      originalRequest._retryCount = (originalRequest._retryCount || 0) + 1;
+      
+      // 記錄錯誤
+      console.warn(`API請求失敗 (嘗試 ${originalRequest._retryCount}/3): ${originalRequest.url}`);
+      console.warn('錯誤詳情:', error.message);
+      
+      if (error.response) {
+        console.warn('錯誤狀態:', error.response.status);
+        
+        // 針對特定錯誤類型進行處理
+        if (error.response.status === 302) {
+          console.log('檢測到重定向。嘗試使用直接路徑...');
+          
+          // 如果是重定向，嘗試直接訪問目標URL
+          if (originalRequest.url.includes('/news-site-api/')) {
+            // 對於重定向的API，嘗試使用原始路徑而非/futu前綴
+            const newPath = originalRequest.url.replace('/futu/', '/');
+            console.log(`嘗試直接訪問路徑: ${newPath}`);
+            originalRequest.url = newPath;
+          }
+        } else if (error.response.status === 0 || error.response.status === 'Network Error' || error.message.includes('Network Error')) {
+          // 網絡錯誤，可能是CORS問題
+          console.log('檢測到網絡錯誤，可能是CORS問題。等待重試...');
+          // 等待一秒再重試
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      
+      // 更新時間戳，確保不使用緩存
+      if (originalRequest.params) {
+        originalRequest.params._t = getCurrentTimestamp();
+      }
+      
+      // 重試請求
+      console.log(`重試請求: ${originalRequest.url}`);
+      return futuClient(originalRequest);
+    }
+    
+    console.error('API請求最終失敗:', error.message);
+    return Promise.reject(error);
+  }
+);
+
+/**
  * @description 從描述中提取標籤
  * @param {string} description - 新聞描述文本
  * @returns {string[]} 提取的標籤數組
@@ -188,7 +268,9 @@ const fetchFutuNews = async () => {
       device_id: deviceId,
       timezone: 8,
       platform: 'web',
-      v: Math.floor(Math.random() * 1000000)
+      v: Math.floor(Math.random() * 1000000),
+      markets: 'hk',
+      lang: 'zh-CN'
     };
     
     console.log('富途要聞請求參數:', params);
