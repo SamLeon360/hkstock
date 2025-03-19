@@ -12,8 +12,7 @@ const futuClient = axios.create({
   baseURL: '/futu',
   timeout: 100000,
   headers: {
-    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
-    'Referer': 'https://news.futunn.com/main',
+    'Content-Type': 'application/json;charset=UTF-8',
     'Accept': 'application/json, text/plain, */*',
     'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
   }
@@ -169,12 +168,16 @@ const formatFutuFlashItem = (item) => {
  */
 const fetchFutuNews = async () => {
   try {
+    // 生成設備ID - 每個會話保持一致
+    const deviceId = sessionStorage.getItem('futu_device_id') || generateDeviceId();
+    sessionStorage.setItem('futu_device_id', deviceId);
+    
     // 構建請求參數
     const params = {
       size: 48,
       isSupportWebp: true,
       _t: Date.now(),
-      device_id: generateDeviceId(),
+      device_id: deviceId,
       timezone: 8,
       platform: 'web',
       v: Math.floor(Math.random() * 1000000)
@@ -184,9 +187,10 @@ const fetchFutuNews = async () => {
     
     const response = await futuClient.get('/news-site-api/main/get-market-list', { params });
     console.log('富途API響應狀態:', response.status);
+    console.log('富途API響應數據類型:', typeof response.data);
     
     // 處理API返回的數據結構
-    if (response.status === 200 && response.data && response.data.code === 0) {
+    if (response.status === 200 && response.data && typeof response.data === 'object' && response.data.code === 0) {
       const newsArray = response.data.data?.list || [];
       
       if (Array.isArray(newsArray) && newsArray.length > 0) {
@@ -216,11 +220,15 @@ const fetchFutuNews = async () => {
  */
 const fetchFutuFlash = async () => {
   try {
+    // 生成設備ID - 每個會話保持一致
+    const deviceId = sessionStorage.getItem('futu_device_id') || generateDeviceId();
+    sessionStorage.setItem('futu_device_id', deviceId);
+    
     // 構建請求參數
     const params = {
       pageSize: 30,
       _t: Date.now(),
-      device_id: generateDeviceId(),
+      device_id: deviceId,
       timezone: 8,
       platform: 'web',
       v: Math.floor(Math.random() * 1000000)
@@ -230,9 +238,10 @@ const fetchFutuFlash = async () => {
     
     const response = await futuClient.get('/news-site-api/main/get-flash-list', { params });
     console.log('富途快訊API響應狀態:', response.status);
+    console.log('富途快訊API響應數據類型:', typeof response.data);
     
     // 處理API返回的數據結構
-    if (response.status === 200 && response.data && response.data.code === 0) {
+    if (response.status === 200 && response.data && typeof response.data === 'object' && response.data.code === 0) {
       const newsArray = response.data.data?.data?.news || [];
       
       if (Array.isArray(newsArray) && newsArray.length > 0) {
