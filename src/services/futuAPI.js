@@ -5,6 +5,14 @@
 import axios from 'axios';
 
 /**
+ * @description 獲取當前時間戳
+ * @returns {number} 當前時間戳（毫秒）
+ */
+const getCurrentTimestamp = () => {
+  return Date.now();
+};
+
+/**
  * @description 富途要聞 API 客戶端實例
  * @type {import('axios').AxiosInstance}
  */
@@ -176,7 +184,7 @@ const fetchFutuNews = async () => {
     const params = {
       size: 48,
       isSupportWebp: true,
-      _t: Date.now(),
+      _t: getCurrentTimestamp(),
       device_id: deviceId,
       timezone: 8,
       platform: 'web',
@@ -227,7 +235,7 @@ const fetchFutuFlash = async () => {
     // 構建請求參數
     const params = {
       pageSize: 30,
-      _t: Date.now(),
+      _t: getCurrentTimestamp(),
       device_id: deviceId,
       timezone: 8,
       platform: 'web',
