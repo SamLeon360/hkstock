@@ -1,13 +1,4 @@
-# 構建階段
-FROM node:18 as build
-
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN npm run build
-
-# 生產階段
+# 直接使用Nginx镜像
 FROM nginx:alpine
 
 # 創建日誌目錄並設置權限
@@ -16,8 +7,8 @@ RUN mkdir -p /var/log/nginx && \
     touch /var/log/nginx/access.log && \
     chmod -R 755 /var/log/nginx
 
-# 從構建階段複製構建產物
-COPY --from=build /app/dist /usr/share/nginx/html
+# 複製本地構建好的文件
+COPY ./dist /usr/share/nginx/html
 
 # 確保所有靜態文件的權限正確
 RUN chmod -R 755 /usr/share/nginx/html

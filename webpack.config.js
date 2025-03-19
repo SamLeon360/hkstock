@@ -1,12 +1,15 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
+// 判断是否为生产环境
+const isProduction = process.env.NODE_ENV === 'production' || process.argv.indexOf('--mode=production') !== -1 || process.argv.indexOf('--mode') !== -1 && process.argv[process.argv.indexOf('--mode') + 1] === 'production';
+
 module.exports = {
-  mode: 'development',
+  mode: isProduction ? 'production' : 'development',
   entry: './src/index.js',
   output: {
     path: path.resolve(__dirname, 'dist'),
-    filename: 'bundle.js',
+    filename: '[name].[contenthash].js',
     publicPath: '/'
   },
   module: {
@@ -15,7 +18,11 @@ module.exports = {
         test: /\.(js|jsx)$/,
         exclude: /node_modules/,
         use: {
-          loader: 'babel-loader'
+          loader: 'babel-loader',
+          options: {
+            // 添加缓存以加快重构速度
+            cacheDirectory: true,
+          }
         }
       },
       {
@@ -39,6 +46,22 @@ module.exports = {
       scriptLoading: 'defer'
     })
   ],
+  // 简化优化配置，以避免冲突
+  optimization: {
+    minimize: isProduction,
+    splitChunks: {
+      chunks: 'all',
+      cacheGroups: {
+        vendors: {
+          test: /[\\/]node_modules[\\/]/,
+          name: 'vendors',
+          chunks: 'all'
+        }
+      }
+    }
+  },
+  // 生产环境用更快的sourcemap
+  devtool: isProduction ? 'source-map' : 'eval-cheap-module-source-map',
   devServer: {
     historyApiFallback: true,
     static: {

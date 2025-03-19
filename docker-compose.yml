@@ -5,6 +5,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        NODE_ENV: production
+        NODE_OPTIONS: --max-old-space-size=2048
     container_name: hkstock-app
     ports:
       - "3001:3001"
@@ -21,6 +24,14 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 3G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
 
 networks:
   hkstock-network:
