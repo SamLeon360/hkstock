@@ -10,7 +10,13 @@ import axios from 'axios';
  */
 const futuClient = axios.create({
   baseURL: '/futu',
-  timeout: 100000
+  timeout: 100000,
+  headers: {
+    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+    'Referer': 'https://news.futunn.com/main',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
+  }
 });
 
 /**
@@ -55,6 +61,20 @@ const formatDate = (timestamp) => {
         minute: '2-digit', 
         second: '2-digit' 
       });
+};
+
+/**
+ * @description 生成随机设备ID
+ * @returns {string} 随机生成的设备ID
+ */
+const generateDeviceId = () => {
+  const prefix = 'web_';
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = prefix;
+  for (let i = 0; i < 8; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
 };
 
 /**
@@ -153,7 +173,11 @@ const fetchFutuNews = async () => {
     const params = {
       size: 48,
       isSupportWebp: true,
-      _t: Date.now()
+      _t: Date.now(),
+      device_id: generateDeviceId(),
+      timezone: 8,
+      platform: 'web',
+      v: Math.floor(Math.random() * 1000000)
     };
     
     console.log('富途要聞請求參數:', params);
@@ -195,7 +219,11 @@ const fetchFutuFlash = async () => {
     // 構建請求參數
     const params = {
       pageSize: 30,
-      _t: Date.now()
+      _t: Date.now(),
+      device_id: generateDeviceId(),
+      timezone: 8,
+      platform: 'web',
+      v: Math.floor(Math.random() * 1000000)
     };
     
     console.log('富途快訊請求參數:', params);
