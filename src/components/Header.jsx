@@ -12,8 +12,6 @@ const Header = ({ activeCategory, setActiveCategory }) => {
   // 金十數據API兼容的分類
   const categories = [
     '要聞',
-    '富途要聞',
-    '富途快訊',
     '快訊'
   ];
 
