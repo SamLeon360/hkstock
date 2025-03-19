@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import FlashItem from './FlashItem';
 
 /**
- * @description 快訊列表組件，顯示富途快訊列表
+ * @description 快訊列表組件，顯示快訊列表
  * @param {Object} props - 組件屬性
  * @param {Array} props.flashList - 快訊列表數據
  * @param {boolean} props.loading - 是否正在加載數據
