@@ -15,38 +15,8 @@ const futuClient = axios.create({
     'Content-Type': 'application/json;charset=UTF-8',
     'Accept': 'application/json, text/plain, */*',
     'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
-  },
-  // 不跟随重定向
-  maxRedirects: 0
-});
-
-// 响应拦截器，处理重定向和错误
-futuClient.interceptors.response.use(
-  response => response,
-  error => {
-    console.error('富途API响应错误:', error.message);
-    
-    // 检查是否為重定向
-    if (error.response && error.response.status === 302) {
-      const redirectUrl = error.response.headers.location;
-      console.warn('检测到重定向:', redirectUrl);
-      
-      // 如果是服务器内部重定向，修正URL
-      if (redirectUrl && !redirectUrl.includes('https://') && !redirectUrl.includes('http://')) {
-        const newUrl = '/futu' + redirectUrl;
-        console.log('尝试重新请求正确路径:', newUrl);
-        // 重新发起请求
-        return axios({
-          ...error.config,
-          url: newUrl,
-          baseURL: ''
-        });
-      }
-    }
-    
-    return Promise.reject(error);
   }
-);
+});
 
 /**
  * @description 從描述中提取標籤
@@ -210,27 +180,12 @@ const fetchFutuNews = async () => {
       device_id: deviceId,
       timezone: 8,
       platform: 'web',
-      v: Math.floor(Math.random() * 1000000),
-      markets: 'hk',
-      lang: 'zh-CN'
+      v: Math.floor(Math.random() * 1000000)
     };
     
     console.log('富途要聞請求參數:', params);
     
-    // 首次尝试
-    let response;
-    try {
-      response = await futuClient.get('/news-site-api/main/get-market-list', { params });
-    } catch (initialError) {
-      console.warn('首次请求失败，尝试直接请求完整路径:', initialError.message);
-      // 如果失败，尝试使用完整路径
-      response = await axios.get('/futu/news-site-api/main/get-market-list', { 
-        params,
-        headers: futuClient.defaults.headers,
-        timeout: futuClient.defaults.timeout
-      });
-    }
-    
+    const response = await futuClient.get('/news-site-api/main/get-market-list', { params });
     console.log('富途API響應狀態:', response.status);
     console.log('富途API響應數據類型:', typeof response.data);
     
@@ -276,27 +231,12 @@ const fetchFutuFlash = async () => {
       device_id: deviceId,
       timezone: 8,
       platform: 'web',
-      v: Math.floor(Math.random() * 1000000),
-      markets: 'hk',
-      lang: 'zh-CN'
+      v: Math.floor(Math.random() * 1000000)
     };
     
     console.log('富途快訊請求參數:', params);
     
-    // 首次尝试
-    let response;
-    try {
-      response = await futuClient.get('/news-site-api/main/get-flash-list', { params });
-    } catch (initialError) {
-      console.warn('首次请求失败，尝试直接请求完整路径:', initialError.message);
-      // 如果失败，尝试使用完整路径
-      response = await axios.get('/futu/news-site-api/main/get-flash-list', { 
-        params,
-        headers: futuClient.defaults.headers,
-        timeout: futuClient.defaults.timeout
-      });
-    }
-    
+    const response = await futuClient.get('/news-site-api/main/get-flash-list', { params });
     console.log('富途快訊API響應狀態:', response.status);
     console.log('富途快訊API響應數據類型:', typeof response.data);
     
