@@ -4,7 +4,9 @@ import Header from './Header';
 import SearchBar from './SearchBar';
 import InfoList from './InfoList';
 import InfoDetail from './InfoDetail';
+import FlashList from './FlashList';
 import { fetchFinancialNews, fetchNewsByCategory, searchFinancialNews } from '../services/jin10API';
+import { fetchFutuNews, fetchFutuFlash } from '../services/futuAPI';
 
 /**
  * @description 主應用組件，包含整個應用的佈局和狀態管理
@@ -49,15 +51,15 @@ const App = () => {
     if (initialized) {
       fetchData();
       
-      // 檢查是否為快訊分類
-      const isFlashNews = activeCategory === '快訊';
-      setAutoRefresh(isFlashNews);
+      // 檢查是否為需要自動刷新的分類
+      const needAutoRefresh = ['快訊', '富途要聞', '富途快訊'].includes(activeCategory);
+      setAutoRefresh(needAutoRefresh);
       
-      if (isFlashNews) {
-        // 如果是快訊，啟動倒計時
+      if (needAutoRefresh) {
+        // 如果需要自動刷新，啟動倒計時
         setCountdown(60);
       } else {
-        // 如果不是快訊，清除計時器
+        // 如果不需要自動刷新，清除計時器
         if (timerRef.current) {
           clearInterval(timerRef.current);
           timerRef.current = null;
@@ -111,9 +113,6 @@ const App = () => {
     setError(null);
     
     try {
-      // 使用金十數據API
-      let newsData;
-      
       // 準備API選項
       const apiOptions = {
         language
@@ -121,19 +120,33 @@ const App = () => {
       
       console.log(`正在獲取分類: ${activeCategory} 的數據`);
       
-      // 獲取分類數據
-      newsData = await fetchNewsByCategory(activeCategory, apiOptions);
+      let newsData;
+      
+      // 根據分類選擇不同的API
+      switch (activeCategory) {
+        case '富途要聞':
+          newsData = await fetchFutuNews();
+          break;
+        case '富途快訊':
+          newsData = await fetchFutuFlash();
+          break;
+        default:
+          // 獲取其他分類數據
+          newsData = await fetchNewsByCategory(activeCategory, apiOptions);
+          break;
+      }
       
       console.log('API返回數據:', newsData.length, '條記錄');
       
       if (Array.isArray(newsData) && newsData.length > 0) {
         setInfoList(newsData);
-        if (!selectedInfo) {
+        if (!selectedInfo || isFlashCategory()) {
           setSelectedInfo(newsData[0]);
         }
       } else {
         console.warn('API返回空數據或非數組:', newsData);
-        setError(`未找到相關${activeCategory === '快訊' ? '快訊' : '金融新聞'}`);
+        const categoryName = getCategoryDisplayName();
+        setError(`未找到相關${categoryName}`);
         setInfoList([]);
       }
     } catch (error) {
@@ -142,6 +155,20 @@ const App = () => {
       setInfoList([]);
     } finally {
       setLoading(false);
+    }
+  };
+  
+  // 獲取分類的顯示名稱
+  const getCategoryDisplayName = () => {
+    switch (activeCategory) {
+      case '快訊':
+        return '快訊';
+      case '富途要聞':
+        return '富途要聞';
+      case '富途快訊':
+        return '富途快訊';
+      default:
+        return '金融新聞';
     }
   };
 
@@ -186,7 +213,7 @@ const App = () => {
   // 手動刷新數據
   const refreshData = () => {
     fetchData();
-    // 如果是快訊，重置倒計時
+    // 如果啟用了自動刷新，重置倒計時
     if (autoRefresh) {
       setCountdown(60);
     }
@@ -219,6 +246,11 @@ const App = () => {
     setAutoRefresh(!autoRefresh);
   };
 
+  // 檢查是否是快訊分類
+  const isFlashCategory = () => {
+    return activeCategory === '富途快訊' || activeCategory === '快訊';
+  };
+
   return (
     <AppContainer>
       <Header 
@@ -237,8 +269,8 @@ const App = () => {
               {loading ? '加載中...' : '刷新數據'}
             </RefreshButton>
             
-            {/* 快訊分類顯示自動刷新選項和倒計時 */}
-            {activeCategory === '快訊' && (
+            {/* 自動刷新選項和倒計時 */}
+            {['快訊', '富途要聞', '富途快訊'].includes(activeCategory) && (
               <>
                 <AutoRefreshToggle 
                   $active={autoRefresh} 
@@ -257,22 +289,34 @@ const App = () => {
           </ControlsGroup>
         </ControlsContainer>
         {error && <ErrorMessage>{error}</ErrorMessage>}
-        <ContentContainer>
-          <ListContainer $showOnMobile={!showDetailOnMobile}>
-            <InfoList 
-              infoList={infoList} 
-              onInfoClick={handleInfoClick} 
-              selectedInfoId={selectedInfo?.id} 
+        
+        {/* 使用 FlashList 組件顯示所有快訊類型 */}
+        {isFlashCategory() ? (
+          <FlashListContainer>
+            <FlashList 
+              flashList={infoList} 
               loading={loading}
             />
-          </ListContainer>
-          <DetailContainer $showOnMobile={showDetailOnMobile}>
-            <InfoDetail 
-              info={selectedInfo} 
-              onBackClick={handleBackToList}
-            />
-          </DetailContainer>
-        </ContentContainer>
+          </FlashListContainer>
+        ) : (
+          /* 其他分類使用標準的InfoList和InfoDetail */
+          <ContentContainer>
+            <ListContainer $showOnMobile={!showDetailOnMobile}>
+              <InfoList 
+                infoList={infoList} 
+                onInfoClick={handleInfoClick} 
+                selectedInfoId={selectedInfo?.id} 
+                loading={loading}
+              />
+            </ListContainer>
+            <DetailContainer $showOnMobile={showDetailOnMobile}>
+              <InfoDetail 
+                info={selectedInfo} 
+                onBackClick={handleBackToList}
+              />
+            </DetailContainer>
+          </ContentContainer>
+        )}
       </MainContent>
     </AppContainer>
   );
@@ -393,6 +437,15 @@ const ContentContainer = styled.div`
     flex-direction: column;
     height: auto;
   }
+`;
+
+const FlashListContainer = styled.div`
+  margin-top: 20px;
+  height: calc(100vh - 200px);
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  background-color: #f9f9f9;
 `;
 
 const ListContainer = styled.div`

@@ -54,6 +54,18 @@ module.exports = {
           'secret-key': 'p7nYZHbya6PJtABF0ul_7'
         },
         logLevel: 'debug'
+      },
+      {
+        context: ['/futu'],
+        target: 'https://news.futunn.com',
+        pathRewrite: { '^/futu': '' },
+        changeOrigin: true,
+        secure: false,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36',
+          'Referer': 'https://news.futunn.com/'
+        },
+        logLevel: 'debug'
       }
     ]
   }
