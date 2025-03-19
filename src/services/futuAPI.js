@@ -13,11 +13,31 @@ const getCurrentTimestamp = () => {
 };
 
 /**
+ * @description 獲取當前主機URL
+ * @returns {string} 當前主機URL
+ */
+const getBaseUrl = () => {
+  // 檢查是否為開發環境或部署環境
+  const isDev = process.env.NODE_ENV === 'development';
+  
+  if (isDev) {
+    // 開發環境使用相對路徑
+    return '';
+  } else {
+    // 部署環境使用絕對路徑，指向Nginx代理
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    const port = window.location.port ? `:${window.location.port}` : '';
+    return `${protocol}//${hostname}${port}`;
+  }
+};
+
+/**
  * @description 富途要聞 API 客戶端實例
  * @type {import('axios').AxiosInstance}
  */
 const futuClient = axios.create({
-  baseURL: '/futu',
+  baseURL: getBaseUrl(),
   timeout: 100000,
   headers: {
     'Content-Type': 'application/json;charset=UTF-8',
@@ -37,6 +57,11 @@ futuClient.interceptors.request.use(
     // 確保每次請求都使用最新的時間戳
     if (config.params && config.params._t) {
       config.params._t = getCurrentTimestamp();
+    }
+    
+    // 修改請求路徑，改為使用 /news-site-api/ 直接代理
+    if (config.url.startsWith('/futu/news-site-api/')) {
+      config.url = config.url.replace('/futu/news-site-api/', '/news-site-api/');
     }
     
     console.log(`API請求: ${config.url}`, config.params);
@@ -78,14 +103,20 @@ futuClient.interceptors.response.use(
           
           // 如果是重定向，嘗試直接訪問目標URL
           if (originalRequest.url.includes('/news-site-api/')) {
-            // 對於重定向的API，嘗試使用原始路徑而非/futu前綴
-            const newPath = originalRequest.url.replace('/futu/', '/');
-            console.log(`嘗試直接訪問路徑: ${newPath}`);
-            originalRequest.url = newPath;
+            // 修復請求URL格式
+            originalRequest.url = '/news-site-api/' + originalRequest.url.split('/news-site-api/')[1];
+            console.log(`重新構建請求路徑: ${originalRequest.url}`);
           }
         } else if (error.response.status === 0 || error.response.status === 'Network Error' || error.message.includes('Network Error')) {
           // 網絡錯誤，可能是CORS問題
-          console.log('檢測到網絡錯誤，可能是CORS問題。等待重試...');
+          console.log('檢測到網絡錯誤，可能是CORS問題。嘗試使用直接代理路徑...');
+          
+          // 改用直接代理路徑
+          if (originalRequest.url.includes('/futu/')) {
+            originalRequest.url = originalRequest.url.replace('/futu/', '/');
+            console.log(`嘗試使用直接代理路徑: ${originalRequest.url}`);
+          }
+          
           // 等待一秒再重試
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
@@ -275,6 +306,7 @@ const fetchFutuNews = async () => {
     
     console.log('富途要聞請求參數:', params);
     
+    // 使用直接代理路徑
     const response = await futuClient.get('/news-site-api/main/get-market-list', { params });
     console.log('富途API響應狀態:', response.status);
     console.log('富途API響應數據類型:', typeof response.data);
@@ -326,6 +358,7 @@ const fetchFutuFlash = async () => {
     
     console.log('富途快訊請求參數:', params);
     
+    // 使用直接代理路徑
     const response = await futuClient.get('/news-site-api/main/get-flash-list', { params });
     console.log('富途快訊API響應狀態:', response.status);
     console.log('富途快訊API響應數據類型:', typeof response.data);
