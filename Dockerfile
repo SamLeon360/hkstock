@@ -1,23 +1,16 @@
-# 使用Node.js官方鏡像作為基礎鏡像
-FROM node:20-alpine
+# 構建階段
+FROM node:18 as build
 
-# 設置工作目錄
 WORKDIR /app
-
-# 複製package.json和package-lock.json
 COPY package*.json ./
-
-# 安裝依賴
 RUN npm install
-
-# 複製所有文件
 COPY . .
-
-# 構建前端應用
 RUN npm run build
 
-# 暴露端口
-EXPOSE 3002
-
-# 啟動爬蟲服務器
-CMD ["node", "server/server.js"] 
+# 生產階段
+FROM nginx:alpine
+COPY --from=build /app/dist /usr/share/nginx/html
+# 不需要再複製nginx.conf，因為在docker-compose.yml中使用了卷映射
+# COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 3001
+CMD ["nginx", "-g", "daemon off;"] 

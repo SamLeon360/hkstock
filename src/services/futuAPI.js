@@ -21,32 +21,10 @@ const getBaseUrl = () => {
   const isDev = process.env.NODE_ENV === 'development';
   
   if (isDev) {
-    // 開發環境使用相對路徑，原始API請求通過webpack-dev-server代理
+    // 開發環境使用相對路徑
     return '';
   } else {
-    // 部署環境使用絕對路徑，指向服務器
-    // 注意：在Docker環境中，這裡會使用主機名而不是localhost
-    const protocol = window.location.protocol;
-    const hostname = window.location.hostname;
-    const port = window.location.port ? `:${window.location.port}` : '';
-    return `${protocol}//${hostname}${port}`;
-  }
-};
-
-/**
- * @description 獲取爬蟲API的基礎URL
- * @returns {string} 爬蟲API基礎URL
- */
-const getCrawlerBaseUrl = () => {
-  // 檢查是否為開發環境或部署環境
-  const isDev = process.env.NODE_ENV === 'development';
-  
-  if (isDev) {
-    // 開發環境使用明確的爬蟲服務器地址和端口
-    return 'http://localhost:3002';
-  } else {
-    // 部署環境使用相同的基礎URL
-    // 在Docker環境中，靜態文件和API服務在同一個服務器上
+    // 部署環境使用絕對路徑，指向Nginx代理
     const protocol = window.location.protocol;
     const hostname = window.location.hostname;
     const port = window.location.port ? `:${window.location.port}` : '';
@@ -60,20 +38,6 @@ const getCrawlerBaseUrl = () => {
  */
 const futuClient = axios.create({
   baseURL: getBaseUrl(),
-  timeout: 100000,
-  headers: {
-    'Content-Type': 'application/json;charset=UTF-8',
-    'Accept': 'application/json, text/plain, */*',
-    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
-  }
-});
-
-/**
- * @description 爬蟲API客戶端實例 
- * @type {import('axios').AxiosInstance}
- */
-const crawlerClient = axios.create({
-  baseURL: getCrawlerBaseUrl(),
   timeout: 100000,
   headers: {
     'Content-Type': 'application/json;charset=UTF-8',
@@ -373,63 +337,10 @@ const fetchFutuNews = async () => {
 };
 
 /**
- * @description 獲取富途快訊列表 - 使用爬蟲API
+ * @description 獲取富途快訊列表
  * @returns {Promise<Array>} 快訊列表
  */
 const fetchFutuFlash = async () => {
-  try {
-    console.log('開始使用爬蟲API獲取富途快訊...');
-    
-    // 使用爬蟲API獲取富途快訊
-    const response = await crawlerClient.get('/api/futu/flash');
-    
-    // 檢查響應狀態和數據格式
-    if (response.status === 200 && response.data && typeof response.data === 'object' && response.data.code === 0) {
-      // 提取快訊數據
-      const newsArray = response.data.data?.data?.news || [];
-      
-      if (Array.isArray(newsArray) && newsArray.length > 0) {
-        console.log(`成功獲取 ${newsArray.length} 條富途快訊（爬蟲API）`);
-        
-        // 格式化並過濾掉空內容的項目
-        const formattedItems = newsArray
-          .map(formatFutuFlashItem)
-          .filter(item => item !== null && item.content && item.content.trim() !== '');
-        
-        console.log(`格式化後剩餘 ${formattedItems.length} 條富途快訊（過濾掉空內容）`);
-        return formattedItems;
-      } else {
-        console.warn('爬蟲API返回的news字段為空數組或不存在');
-        
-        // 嘗試使用原方式獲取
-        return await fetchFutuFlashOriginal();
-      }
-    } else {
-      console.warn('爬蟲API返回無效響應:', response.data);
-      
-      // 嘗試使用原方式獲取
-      return await fetchFutuFlashOriginal();
-    }
-  } catch (error) {
-    console.error('使用爬蟲API獲取富途快訊失敗:', error.message);
-    
-    // 顯示錯誤詳情
-    if (error.response) {
-      console.error('錯誤狀態:', error.response.status);
-      console.error('錯誤數據:', error.response.data);
-    }
-    
-    // 嘗試使用原方式獲取
-    console.log('嘗試使用原方式獲取富途快訊...');
-    return await fetchFutuFlashOriginal();
-  }
-};
-
-/**
- * @description 原始方式獲取富途快訊列表 - 備用方案
- * @returns {Promise<Array>} 快訊列表
- */
-const fetchFutuFlashOriginal = async () => {
   try {
     // 生成設備ID - 每個會話保持一致
     const deviceId = sessionStorage.getItem('futu_device_id') || generateDeviceId();
@@ -445,19 +356,19 @@ const fetchFutuFlashOriginal = async () => {
       v: Math.floor(Math.random() * 1000000)
     };
     
-    console.log('富途快訊請求參數 (原方式):', params);
+    console.log('富途快訊請求參數:', params);
     
     // 使用直接代理路徑
     const response = await futuClient.get('/news-site-api/main/get-flash-list', { params });
-    console.log('富途快訊API響應狀態 (原方式):', response.status);
-    console.log('富途快訊API響應數據類型 (原方式):', typeof response.data);
+    console.log('富途快訊API響應狀態:', response.status);
+    console.log('富途快訊API響應數據類型:', typeof response.data);
     
     // 處理API返回的數據結構
     if (response.status === 200 && response.data && typeof response.data === 'object' && response.data.code === 0) {
       const newsArray = response.data.data?.data?.news || [];
       
       if (Array.isArray(newsArray) && newsArray.length > 0) {
-        console.log(`成功獲取 ${newsArray.length} 條富途快訊 (原方式)`);
+        console.log(`成功獲取 ${newsArray.length} 條富途快訊`);
         
         // 格式化並過濾掉空內容的項目
         const formattedItems = newsArray
@@ -475,7 +386,7 @@ const fetchFutuFlashOriginal = async () => {
       return [];
     }
   } catch (error) {
-    console.error('獲取富途快訊失敗 (原方式):', error.message);
+    console.error('獲取富途快訊失敗:', error.message);
     if (error.response) {
       console.error('API錯誤狀態:', error.response.status);
       console.error('API錯誤數據:', error.response.data);
