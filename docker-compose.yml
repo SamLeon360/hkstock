@@ -1,17 +1,20 @@
 version: '3'
 
 services:
-  # 爬蟲服務和前端應用（合併在一起）
+  # 爬蟲服務和前端應用
   app:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: hkstock-app
+    image: hkstock-app:latest
     ports:
-      - "3002:3002"  # 將容器內的3002端口映射到主機的3002端口
+      - "3002:3002"
     restart: always
     volumes:
-      - ./logs:/app/logs  # 可選：將日誌文件持久化
+      - ./logs:/app/logs
+    environment:
+      - NODE_ENV=production
 
   # Nginx服務（可選，用於更複雜的場景或SSL配置）
   # nginx:
@@ -28,5 +31,5 @@ services:
   #   restart: always
 
 networks:
-  hkstock-network:
+  default:
     driver: bridge 
