@@ -55,10 +55,10 @@ const App = () => {
       setAutoRefresh(needAutoRefresh);
       
       if (needAutoRefresh) {
-        // 如果需要自動刷新，啟動倒計時
+        // 如果是快訊，啟動倒計時
         setCountdown(60);
       } else {
-        // 如果不需要自動刷新，清除計時器
+        // 如果不是快訊，清除計時器
         if (timerRef.current) {
           clearInterval(timerRef.current);
           timerRef.current = null;
@@ -126,13 +126,12 @@ const App = () => {
       
       if (Array.isArray(newsData) && newsData.length > 0) {
         setInfoList(newsData);
-        if (!selectedInfo || isFlashCategory()) {
+        if (!selectedInfo) {
           setSelectedInfo(newsData[0]);
         }
       } else {
         console.warn('API返回空數據或非數組:', newsData);
-        const categoryName = getCategoryDisplayName();
-        setError(`未找到相關${categoryName}`);
+        setError(`未找到相關${activeCategory === '快訊' ? '快訊' : '金融新聞'}`);
         setInfoList([]);
       }
     } catch (error) {
@@ -272,7 +271,7 @@ const App = () => {
         </ControlsContainer>
         {error && <ErrorMessage>{error}</ErrorMessage>}
         
-        {/* 使用 FlashList 組件顯示所有快訊類型 */}
+        {/* 使用 FlashList 組件顯示快訊 */}
         {isFlashCategory() ? (
           <FlashListContainer>
             <FlashList 
@@ -360,10 +359,11 @@ const DetailContainer = styled.div`
 
 const FlashListContainer = styled.div`
   margin-top: 20px;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
   height: calc(100vh - 200px);
-  overflow-y: auto;
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  background-color: #f9f9f9;
 `;
 
 const ControlsContainer = styled.div`

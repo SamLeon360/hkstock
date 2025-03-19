@@ -1,358 +1,296 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { getNewsAnalysis } from '../services/deepseekAPI';
 import DeepseekComment from './DeepseekComment';
+import { getNewsAnalysis } from '../services/deepseekAPI';
 
 /**
- * @description 快訊項目組件，直接顯示完整的快訊內容
+ * @description 單個快訊項組件，直接顯示全部內容，右上角有Deepseek評論按鈕
  * @param {Object} props - 組件屬性
- * @param {Object} props.flash - 快訊對象
- * @returns {JSX.Element} 快訊項目組件
+ * @param {Object} props.item - 快訊項數據
+ * @returns {JSX.Element} FlashItem組件
  */
-const FlashItem = ({ flash }) => {
+const FlashItem = ({ item }) => {
+  // 是否顯示AI分析
   const [showAnalysis, setShowAnalysis] = useState(false);
-  const [analysisData, setAnalysisData] = useState(null);
+  // AI分析結果
+  const [analysis, setAnalysis] = useState(null);
+  // 分析加載狀態
   const [analysisLoading, setAnalysisLoading] = useState(false);
+  // 流式輸出的文本
   const [streamText, setStreamText] = useState('');
-  
-  if (!flash) return null;
-  
-  // 如果內容為空字符串，不顯示該快訊項
-  if (!flash.content || flash.content.trim() === '') return null;
 
-  // 處理分析按鈕點擊
-  const handleAnalysisClick = async (e) => {
-    e.stopPropagation(); // 防止事件冒泡
+  /**
+   * @description 處理AI分析按鈕點擊
+   */
+  const handleAnalysisClick = async () => {
+    // 切換顯示狀態
+    setShowAnalysis(prev => !prev);
     
-    if (analysisLoading) return;
-    
-    if (showAnalysis && analysisData) {
-      // 如果已經顯示分析並且有數據，則隱藏分析
-      setShowAnalysis(false);
+    // 如果已經有分析結果且正在顯示，則只需切換顯示狀態
+    if (analysis && !showAnalysis) {
       return;
     }
     
-    setShowAnalysis(true);
+    // 如果正在加載或已經有分析結果，則直接返回
+    if (analysisLoading || analysis) {
+      return;
+    }
     
-    if (!analysisData) {
-      // 如果沒有分析數據，則獲取分析
-      setAnalysisLoading(true);
-      setStreamText('');
+    // 開始獲取分析
+    setAnalysisLoading(true);
+    setStreamText('');
+    
+    try {
+      // 定義處理流式輸出的回調函數
+      const handleStreamResponse = (chunk) => {
+        setStreamText(prev => prev + chunk);
+      };
       
-      try {
-        // 定義處理流式輸出的回調函數
-        const handleChunk = (chunk) => {
-          setStreamText(prevText => {
-            const newText = prevText + chunk;
-            // 將純文本轉換為HTML格式的文本，保留換行
-            return newText.replace(/\n/g, '<br/>');
-          });
-        };
-        
-        // 獲取分析結果
-        const result = await getNewsAnalysis(flash, handleChunk);
-        setAnalysisData(result);
-      } catch (error) {
-        console.error('獲取Deepseek分析失敗:', error);
-        // 友好地顯示錯誤信息
-        setStreamText(prevText => {
-          const errorMessage = error.message || '獲取分析時出錯，請稍後再試。';
-          return `<span style="color: #e74c3c;">${errorMessage}</span><br/><br/>請檢查網絡連接或API密鑰是否有效，或稍後再試。`;
-        });
-      } finally {
-        setAnalysisLoading(false);
-      }
+      // 調用API獲取分析結果
+      const result = await getNewsAnalysis(item, handleStreamResponse);
+      setAnalysis(result);
+    } catch (error) {
+      console.error('獲取AI分析失敗:', error);
+      setStreamText(`獲取分析失敗: ${error.message}`);
+    } finally {
+      setAnalysisLoading(false);
     }
   };
-  
-  // 渲染相關股票
-  const renderRelatedStocks = () => {
-    if (!flash.relatedStocks || flash.relatedStocks.length === 0) return null;
-    
-    return (
-      <RelatedStocksContainer>
-        <RelatedStocksHeader>相關股票：</RelatedStocksHeader>
-        <StocksList>
-          {flash.relatedStocks.map((stock, index) => (
-            <StockItem key={index}>
-              <StockName>{stock.name}</StockName>
-              <StockCode>{stock.code}</StockCode>
-              <StockPrice $change={parseFloat(stock.change)}>
-                {stock.price} <ChangeRatio>{stock.change}</ChangeRatio>
-              </StockPrice>
-            </StockItem>
-          ))}
-        </StocksList>
-      </RelatedStocksContainer>
-    );
-  };
 
-  // 判斷是否顯示標題
-  const shouldShowTitle = () => {
-    // 如果沒有標題，或者標題是"未提供標題"，或者標題與內容相同，則不顯示標題
-    return flash.title && 
-           flash.title !== '未提供標題' && 
-           flash.title !== flash.content;
+  // 如果沒有項目數據，不渲染任何內容
+  if (!item) return null;
+
+  // 確保內容是字符串，如果是對象則轉換為字符串
+  const renderContent = () => {
+    if (!item.content) return '';
+    
+    if (typeof item.content === 'object') {
+      // 如果內容是對象，嘗試提取有用信息並格式化為字符串
+      try {
+        return JSON.stringify(item.content);
+      } catch (e) {
+        console.error('無法渲染內容對象:', e);
+        return '無法顯示內容';
+      }
+    }
+    
+    return item.content;
   };
 
   return (
-    <FlashItemContainer>
-      <FlashHeader>
-        <FlashDate>{flash.date}</FlashDate>
-        <AIButton onClick={handleAnalysisClick} $active={showAnalysis} $loading={analysisLoading}>
-          {analysisLoading ? <ButtonSpinner /> : <AIIcon />}
+    <ItemContainer>
+      <ItemHeader>
+        <DateTimeLabel>{item.datetime || '無日期信息'}</DateTimeLabel>
+        <AIButton onClick={handleAnalysisClick}>
+          <AIText>AI</AIText>
         </AIButton>
-      </FlashHeader>
+      </ItemHeader>
       
-      {/* 只在特定條件下顯示標題 */}
-      {shouldShowTitle() && (
-        <FlashTitle>{flash.title}</FlashTitle>
-      )}
-      
-      <FlashContent dangerouslySetInnerHTML={{ __html: flash.content }} />
-      
-      {renderRelatedStocks()}
+      <ItemContent>
+        <Content $important={item.important}>{renderContent()}</Content>
+        
+        {/* 顯示標籤 - 確保標籤是數組且每個項目是字符串 */}
+        {item.tags && Array.isArray(item.tags) && item.tags.length > 0 && (
+          <TagsContainer>
+            {item.tags.map((tag, index) => (
+              <Tag key={index}>{typeof tag === 'object' ? JSON.stringify(tag) : String(tag)}</Tag>
+            ))}
+          </TagsContainer>
+        )}
+        
+        {/* 顯示相關股票 - 確保相關股票是數組且每個項目有有效的屬性 */}
+        {item.related_stocks && Array.isArray(item.related_stocks) && item.related_stocks.length > 0 && (
+          <RelatedStocksContainer>
+            <RelatedStocksLabel>相關股票:</RelatedStocksLabel>
+            {item.related_stocks.map((stock, index) => (
+              <StockBadge key={index}>
+                {(stock.name || '未知股票')} {stock.code ? `(${stock.code})` : ''}
+              </StockBadge>
+            ))}
+          </RelatedStocksContainer>
+        )}
+      </ItemContent>
       
       {/* 分析彈窗 */}
       {showAnalysis && (
-        <AnalysisPopup $show={showAnalysis}>
-          <PopupOverlay onClick={() => setShowAnalysis(false)} />
-          <PopupContent>
-            <PopupCloseButton onClick={() => setShowAnalysis(false)}>×</PopupCloseButton>
-            <PopupTitle>{shouldShowTitle() ? flash.title : flash.content}</PopupTitle>
+        <AnalysisPopup>
+          <AnalysisHeader>
+            <AnalysisTitle>AI分析</AnalysisTitle>
+            <CloseButton onClick={() => setShowAnalysis(false)}>×</CloseButton>
+          </AnalysisHeader>
+          <AnalysisContent>
             <DeepseekComment 
-              analysis={analysisData} 
-              loading={analysisLoading}
-              streamText={streamText}
+              analysis={analysis} 
+              loading={analysisLoading} 
+              streamText={streamText} 
             />
-          </PopupContent>
+          </AnalysisContent>
         </AnalysisPopup>
       )}
-    </FlashItemContainer>
+    </ItemContainer>
   );
 };
 
 // 樣式組件
-const FlashItemContainer = styled.div`
-  padding: 15px;
+const ItemContainer = styled.div`
+  position: relative;
   background-color: white;
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  margin-bottom: 0;
-  position: relative;
+  padding: 15px;
+  margin-bottom: 15px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  transition: box-shadow 0.2s ease-in-out;
+  
+  &:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
 `;
 
-const FlashHeader = styled.div`
+const ItemHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  position: relative;
 `;
 
-const FlashDate = styled.span`
-  font-size: 12px;
+const DateTimeLabel = styled.div`
   color: #888;
+  font-size: 13px;
 `;
 
 const AIButton = styled.button`
+  position: absolute;
+  top: -8px;
+  right: -8px;
   width: 32px;
   height: 32px;
-  border-radius: 50%;
-  background-color: ${props => props.$active ? '#e74c3c' : '#9b59b6'};
+  background-color: #3498db;
   color: white;
   border: none;
+  border-radius: 50%;
   display: flex;
-  align-items: center;
   justify-content: center;
-  cursor: ${props => props.$loading ? 'not-allowed' : 'pointer'};
-  transition: all 0.2s;
+  align-items: center;
+  cursor: pointer;
+  transition: transform 0.2s, background-color 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  z-index: 1;
   
   &:hover {
-    background-color: ${props => props.$active ? '#c0392b' : '#8e44ad'};
+    background-color: #2980b9;
+    transform: scale(1.1);
   }
 `;
 
-const AIIcon = styled.div`
-  font-size: 16px;
-  &:before {
-    content: "AI";
-    font-weight: bold;
-    font-style: normal;
-  }
+const AIText = styled.span`
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 1;
 `;
 
-const ButtonSpinner = styled.div`
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top: 2px solid white;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
+const ItemContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 `;
 
-const FlashTitle = styled.h3`
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0 0 10px 0;
-  line-height: 1.4;
-  color: #333;
-`;
-
-const FlashContent = styled.div`
+const Content = styled.div`
   font-size: 15px;
-  line-height: 1.7;
-  color: #444;
-  margin-bottom: 10px;
-  
-  /* 強調關鍵數字 */
-  b, strong {
-    font-weight: 600;
-    color: #333;
-  }
-  
-  /* 數字樣式 */
-  span[style*="color"] {
-    font-weight: 600;
-  }
+  line-height: 1.6;
+  color: ${props => props.$important ? '#e74c3c' : '#333'};
+  white-space: pre-wrap;
+  word-break: break-word;
+`;
+
+const TagsContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+`;
+
+const Tag = styled.span`
+  background-color: #f0f0f0;
+  color: #555;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
 `;
 
 const RelatedStocksContainer = styled.div`
-  margin-top: 15px;
-  padding-top: 15px;
-  border-top: 1px solid #f0f0f0;
-`;
-
-const RelatedStocksHeader = styled.div`
-  font-weight: 600;
-  font-size: 14px;
-  margin-bottom: 10px;
-`;
-
-const StocksList = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 15px;
-`;
-
-const StockItem = styled.div`
-  background-color: #f9f9f9;
-  border-radius: 6px;
-  padding: 8px 12px;
-  display: flex;
-  flex-direction: column;
-  min-width: 110px;
-`;
-
-const StockName = styled.div`
-  font-weight: 600;
-  font-size: 14px;
-  color: #333;
-`;
-
-const StockCode = styled.div`
-  font-size: 12px;
-  color: #1890ff;
-  margin-top: 2px;
-`;
-
-const StockPrice = styled.div`
+  align-items: center;
+  gap: 8px;
   margin-top: 5px;
-  font-weight: 600;
-  font-size: 13px;
-  /* 修改顏色邏輯：綠色表示上漲（正值），紅色表示下跌（負值） */
-  color: ${props => props.$change > 0 ? '#27ae60' : props.$change < 0 ? '#e74c3c' : '#666'};
 `;
 
-const ChangeRatio = styled.span`
+const RelatedStocksLabel = styled.span`
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+`;
+
+const StockBadge = styled.span`
+  background-color: #e6f7ff;
+  color: #1890ff;
+  padding: 3px 10px;
+  border-radius: 12px;
   font-size: 12px;
+  font-weight: 500;
 `;
 
 const AnalysisPopup = styled.div`
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: ${props => props.$show ? 'flex' : 'none'};
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  animation: ${props => props.$show ? 'fadeIn 0.3s ease' : 'none'};
-  
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-`;
-
-const PopupOverlay = styled.div`
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 1;
-`;
-
-const PopupContent = styled.div`
-  position: relative;
-  width: 80%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
   max-width: 800px;
   max-height: 80vh;
   background-color: white;
   border-radius: 8px;
-  padding: 25px;
-  z-index: 2;
-  overflow-y: auto;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  animation: slideIn 0.3s ease;
-  
-  @keyframes slideIn {
-    from {
-      transform: translateY(30px);
-      opacity: 0;
-    }
-    to {
-      transform: translateY(0);
-      opacity: 1;
-    }
-  }
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 `;
 
-const PopupTitle = styled.h2`
-  font-size: 20px;
+const AnalysisHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+`;
+
+const AnalysisTitle = styled.h3`
+  margin: 0;
+  font-size: 18px;
   font-weight: 600;
-  margin: 0 0 20px 0;
-  padding-bottom: 15px;
-  border-bottom: 1px solid #f0f0f0;
+  color: #333;
 `;
 
-const PopupCloseButton = styled.button`
-  position: absolute;
-  top: 15px;
-  right: 15px;
-  width: 30px;
-  height: 30px;
+const CloseButton = styled.button`
   background: none;
   border: none;
   font-size: 24px;
-  color: #666;
+  line-height: 1;
+  color: #888;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
+  padding: 0;
   
   &:hover {
-    background-color: #f0f0f0;
     color: #333;
   }
+`;
+
+const AnalysisContent = styled.div`
+  padding: 20px;
+  overflow-y: auto;
+  max-height: calc(80vh - 60px);
 `;
 
 export default FlashItem; 
