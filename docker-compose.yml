@@ -1,20 +1,31 @@
 version: '3'
 
 services:
-  hkstock-app:
+  # 爬蟲服務和前端應用（合併在一起）
+  app:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: hkstock-app
     ports:
-      - "3001:3001"
-    restart: unless-stopped
-    environment:
-      - NODE_ENV=production
+      - "80:3002"  # 將容器內的3002端口映射到主機的80端口
+    restart: always
     volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf
-    networks:
-      - hkstock-network
+      - ./logs:/app/logs  # 可選：將日誌文件持久化
+
+  # Nginx服務（可選，用於更複雜的場景或SSL配置）
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: hkstock-nginx
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/conf.d/default.conf
+  #     - ./ssl:/etc/nginx/ssl
+  #   depends_on:
+  #     - app
+  #   restart: always
 
 networks:
   hkstock-network:

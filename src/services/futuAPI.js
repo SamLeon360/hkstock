@@ -24,7 +24,8 @@ const getBaseUrl = () => {
     // 開發環境使用相對路徑，原始API請求通過webpack-dev-server代理
     return '';
   } else {
-    // 部署環境使用絕對路徑，指向Nginx代理
+    // 部署環境使用絕對路徑，指向服務器
+    // 注意：在Docker環境中，這裡會使用主機名而不是localhost
     const protocol = window.location.protocol;
     const hostname = window.location.hostname;
     const port = window.location.port ? `:${window.location.port}` : '';
@@ -45,6 +46,7 @@ const getCrawlerBaseUrl = () => {
     return 'http://localhost:3002';
   } else {
     // 部署環境使用相同的基礎URL
+    // 在Docker環境中，靜態文件和API服務在同一個服務器上
     const protocol = window.location.protocol;
     const hostname = window.location.hostname;
     const port = window.location.port ? `:${window.location.port}` : '';
