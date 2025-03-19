@@ -39,4 +39,4 @@ echo "檢查容器狀態..."
 docker-compose ps
 
 echo "===== HKStock應用部署完成 ====="
-echo "訪問您的應用: http://您的服務器IP" 
+echo "訪問您的應用: http://您的服務器IP:3002" 

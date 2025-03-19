@@ -8,7 +8,7 @@ services:
       dockerfile: Dockerfile
     container_name: hkstock-app
     ports:
-      - "80:3002"  # 將容器內的3002端口映射到主機的80端口
+      - "3002:3002"  # 將容器內的3002端口映射到主機的3002端口
     restart: always
     volumes:
       - ./logs:/app/logs  # 可選：將日誌文件持久化
